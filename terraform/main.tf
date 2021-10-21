@@ -35,17 +35,6 @@ resource "aws_subnet" "public-sub-2" {
   }
 }
 
-# Create a private subnet.
-resource "aws_subnet" "private-sub" {
-  vpc_id            = aws_vpc.main.id
-  cidr_block        = "10.0.2.0/26"
-  availability_zone = "us-east-1a"
-
-  tags = {
-    "Name" = "private subnet"
-  }
-}
-
 # Create an internet gateway.
 resource "aws_internet_gateway" "igw" {
   vpc_id = aws_vpc.main.id
@@ -92,7 +81,7 @@ resource "aws_security_group" "lb_sg" {
     to_port          = 443
     protocol         = "tcp"
     cidr_blocks      = ["0.0.0.0/0"]
-    ipv6_cidr_blocks = ["0.0.0.0/0"]
+    ipv6_cidr_blocks = ["::/0"]
   }
 
   ingress {
@@ -101,7 +90,16 @@ resource "aws_security_group" "lb_sg" {
     to_port          = 80
     protocol         = "tcp"
     cidr_blocks      = ["0.0.0.0/0"]
-    ipv6_cidr_blocks = ["0.0.0.0/0"]
+    ipv6_cidr_blocks = ["::/0"]
+  }
+
+  ingress {
+    description      = "SSH"
+    from_port        = 22
+    to_port          = 22
+    protocol         = "tcp"
+    cidr_blocks      = ["0.0.0.0/0"]
+    ipv6_cidr_blocks = ["::/0"]
   }
 
   egress {
@@ -115,6 +113,61 @@ resource "aws_security_group" "lb_sg" {
   tags = {
     Name = "LB Security Group"
   }
+}
+
+# Create an Elastic IP
+resource "aws_eip" "nat-eip" {
+  vpc        = true
+  depends_on = [aws_internet_gateway.igw]
+
+  tags = {
+    "Name" = "NAT Gateway EIP"
+  }
+}
+
+# Create a NAT Gateway
+resource "aws_nat_gateway" "nat" {
+  allocation_id = aws_eip.nat-eip.id
+  subnet_id     = aws_subnet.public-sub-1.id
+
+  tags = {
+    Name = "gw NAT"
+  }
+
+  # To ensure proper ordering, it is recommended to add an explicit dependency
+  # on the Internet Gateway for the VPC.
+  depends_on = [aws_internet_gateway.igw]
+}
+
+# Create a private subnet.
+resource "aws_subnet" "private-sub" {
+  vpc_id            = aws_vpc.main.id
+  cidr_block        = "10.0.2.0/26"
+  availability_zone = "us-east-1a"
+
+  tags = {
+    "Name" = "private subnet"
+  }
+}
+
+# Create a route table for private-sub
+resource "aws_route_table" "private" {
+  vpc_id = aws_vpc.main.id
+
+  route {
+    cidr_block = "0.0.0.0/0"
+    gateway_id = aws_nat_gateway.nat.id
+  }
+
+  tags = {
+    "Name" = "Public Route Table"
+  }
+}
+
+# Associate the route table with private-sub
+resource "aws_route_table_association" "private-1" {
+  subnet_id      = aws_subnet.private-sub.id
+  route_table_id = aws_route_table.private.id
 }
 
 # Create Ubuntu server and install nginx
@@ -131,11 +184,12 @@ resource "aws_instance" "application-server-1" {
   user_data = <<-EOF
                 #!/bin/bash
                 sudo apt update -y
-                sudo apt install nginx -y
+                sudo apt-get update && sudo apt-get install build-essential python3 python3-pip nginx -y && pip3 install uwsgi
                 sudo systemctl start nginx
+                echo "<h1>One</h1>" > /var/www/html/index.nginx-debian.html
                 EOF
   tags = {
-    Name = "web-server"
+    Name = "web-server-1"
   }
 }
 resource "aws_instance" "application-server-2" {
@@ -151,11 +205,12 @@ resource "aws_instance" "application-server-2" {
   user_data = <<-EOF
                 #!/bin/bash
                 sudo apt update -y
-                sudo apt install nginx -y
+                sudo apt-get update && sudo apt-get install build-essential python3 python3-pip nginx -y && pip3 install uwsgi
                 sudo systemctl start nginx
+                echo "<h1>Two</h1>" > /var/www/html/index.nginx-debian.html
                 EOF
   tags = {
-    Name = "web-server"
+    Name = "web-server-2"
   }
 }
 
