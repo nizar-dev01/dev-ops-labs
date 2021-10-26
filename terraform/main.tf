@@ -132,7 +132,6 @@ resource "aws_eip" "nat-eip" {
 resource "aws_nat_gateway" "nat" {
   allocation_id = aws_eip.nat-eip.id
   subnet_id     = aws_subnet.public-sub-1.id
-
   tags = {
     Name = "gw NAT"
   }
@@ -184,25 +183,13 @@ resource "aws_instance" "application-server-1" {
     aws_security_group.lb_sg.id
   ]
 
+  depends_on = [
+    aws_lb.load-balancer,
+    aws_nat_gateway.nat
+  ]
+
   user_data = <<-EOF
-                #!/bin/bash
-                sudo apt-get update &&  sudo apt-get install build-essential git python3 python3-pip python3-venv nginx -y && pip3 install uwsgi
-                python3 -m venv ~/app && source ~/app/bin/activate
-                pip3 install django
-                git clone https://github.com/nizar-dev01/baby-django.git
-                sudo cp ~/baby-django/server.conf /etc/nginx/sites-available
-                sudo ln -s /etc/nginx/sites-available/server.conf /etc/nginx/sites-enabled
-
-                sudo sed -i 's/# server_names_hash_bucket_size 64;/server_names_hash_bucket_size 128;/g' /etc/nginx/nginx.conf
-                sudo service nginx restart
-                uwsgi --ini ~/baby-django/app_uwsgi.ini
-
-                mkdir ~/app/vassals
-                sudo cp ~/baby-django/emperor.uwsgi.service /etc/systemd/system
-
-                sudo systemctl enable emperor.uwsgi.service
-                sudo systemctl start emperor.uwsgi.service
-
+                V
                 EOF
   tags = {
     Name = "web-server-1"
@@ -218,29 +205,74 @@ resource "aws_instance" "application-server-2" {
     aws_security_group.lb_sg.id
   ]
 
+  depends_on = [
+    aws_lb.load-balancer,
+    aws_nat_gateway.nat
+  ]
+
   user_data = <<-EOF
                 #!/bin/bash
-                sudo apt-get update &&  sudo apt-get install build-essential git python3 python3-pip python3-venv nginx -y && pip3 install uwsgi
+                apt-get update && apt-get install build-essential git python3 python3-pip python3-venv nginx -y && pip3 install uwsgi
                 python3 -m venv ~/app && source ~/app/bin/activate
                 pip3 install django
-                git clone https://github.com/nizar-dev01/baby-django.git
-                sudo cp ~/baby-django/server.conf /etc/nginx/sites-available
-                sudo ln -s /etc/nginx/sites-available/server.conf /etc/nginx/sites-enabled
+                git clone https://github.com/nizar-dev01/baby-django.git ~/baby-django
+                sed -i 's/***-lb-dns-***/${aws_lb.load-balancer.dns_name}/g' ~/baby-django/server.conf
+                cp ~/baby-django/server.conf /etc/nginx/sites-available
+                ln -s /etc/nginx/sites-available/server.conf /etc/nginx/sites-enabled
 
-                sudo sed -i 's/# server_names_hash_bucket_size 64;/server_names_hash_bucket_size 128;/g' /etc/nginx/nginx.conf
-                sudo service nginx restart
+                sed -i 's/# server_names_hash_bucket_size 64;/server_names_hash_bucket_size 128;/g' /etc/nginx/nginx.conf
+                service nginx restart
                 uwsgi --ini ~/baby-django/app_uwsgi.ini
 
                 mkdir ~/app/vassals
                 
-                sudo cp ~/baby-django/emperor.uwsgi.service /etc/systemd/system
+                cp ~/baby-django/emperor.uwsgi.service /etc/systemd/system
 
-                sudo systemctl enable emperor.uwsgi.service
-                sudo systemctl start emperor.uwsgi.service
-                
+                systemctl enable emperor.uwsgi.service
+                systemctl start emperor.uwsgi.service
                 EOF
   tags = {
     Name = "web-server-2"
+  }
+}
+
+resource "aws_instance" "public-proxy-server" {
+  ami               = "ami-085925f297f89fce1"
+  instance_type     = "t2.micro"
+  availability_zone = "us-east-1a"
+  key_name          = "ec2_keys"
+  subnet_id         = aws_subnet.public-sub-1.id
+  security_groups = [
+    aws_security_group.lb_sg.id
+  ]
+
+  depends_on = [
+    aws_lb.load-balancer
+  ]
+
+  user_data = <<-EOF
+                #!/bin/bash
+                apt-get update &&  apt-get install build-essential git python3 python3-pip python3-venv nginx -y && pip3 install uwsgi
+                python3 -m venv ~/app && source ~/app/bin/activate
+                pip3 install django
+                git clone https://github.com/nizar-dev01/baby-django.git ~/baby-django
+                sed -i 's/***-lb-dns-***/${aws_lb.load-balancer.dns_name}/g' /etc/nginx/nginx.conf
+                cp ~/baby-django/server.conf /etc/nginx/sites-available
+                ln -s /etc/nginx/sites-available/server.conf /etc/nginx/sites-enabled
+
+                sed -i 's/# server_names_hash_bucket_size 64;/server_names_hash_bucket_size 128;/g' /etc/nginx/nginx.conf
+                service nginx restart
+                uwsgi --ini ~/baby-django/app_uwsgi.ini
+
+                mkdir ~/app/vassals
+                
+                cp ~/baby-django/emperor.uwsgi.service /etc/systemd/system
+
+                systemctl enable emperor.uwsgi.service
+                systemctl start emperor.uwsgi.service
+                EOF
+  tags = {
+    Name = "proxy-server"
   }
 }
 
