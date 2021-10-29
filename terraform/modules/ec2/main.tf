@@ -20,7 +20,7 @@ resource "aws_instance" "application-server-1" {
   user_data = data.template_file.user_data.rendered
 
   tags = {
-    Name = "web-server-1"
+    Name = "web-server-1-${var.app_env}"
   }
 }
 resource "aws_instance" "application-server-2" {
@@ -37,11 +37,12 @@ resource "aws_instance" "application-server-2" {
 
   user_data = data.template_file.user_data.rendered
   tags = {
-    Name = "web-server-2"
+    Name = "web-server-2-${var.app_env}"
   }
 }
 
 resource "aws_instance" "public-proxy-server" {
+  count             = var.app_env == "production" ? 0 : 1
   ami               = var.instance_ami
   instance_type     = var.instance_type
   availability_zone = var.availability_zone
@@ -50,7 +51,7 @@ resource "aws_instance" "public-proxy-server" {
   security_groups   = [var.app_security_group_id]
 
   tags = {
-    Name = "proxy-server"
+    Name = "proxy-server-${var.app_env}"
   }
 }
 
@@ -68,7 +69,7 @@ resource "aws_lb" "load-balancer" {
   enable_cross_zone_load_balancing = false
 
   tags = {
-    Name = "Application Load Balancer"
+    Name = "load-balancer-${var.app_env}"
   }
 }
 
@@ -84,7 +85,7 @@ resource "aws_lb_target_group" "target-group" {
   }
 
   tags = {
-    "Name" = "App Target Group"
+    "Name" = "target-group-${var.app_env}"
   }
 }
 

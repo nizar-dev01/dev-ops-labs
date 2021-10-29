@@ -4,7 +4,7 @@ resource "aws_vpc" "main" {
   instance_tenancy = "default"
 
   tags = {
-    "Name" = "main"
+    "Name" = "app-vpc-${var.app_env}"
   }
 }
 
@@ -15,7 +15,7 @@ resource "aws_subnet" "public-sub-1" {
   availability_zone       = "us-east-1a"
   map_public_ip_on_launch = true
   tags = {
-    "Name" = "public subnet 1"
+    "Name" = "public-subnet-1-${var.app_env}"
   }
 }
 
@@ -27,7 +27,7 @@ resource "aws_subnet" "public-sub-2" {
   map_public_ip_on_launch = true
 
   tags = {
-    "Name" = "public subnet 2"
+    "Name" = "public-subnet-2-${var.app_env}"
   }
 }
 
@@ -36,7 +36,7 @@ resource "aws_internet_gateway" "igw" {
   vpc_id = aws_vpc.main.id
 
   tags = {
-    "Name" = "Main IGW"
+    "Name" = "igw-${var.app_env}"
   }
 }
 
@@ -50,7 +50,7 @@ resource "aws_route_table" "public" {
   }
 
   tags = {
-    "Name" = "Public Route Table"
+    "Name" = "pub-route-table-${var.app_env}"
   }
 }
 
@@ -71,7 +71,7 @@ resource "aws_eip" "nat-eip" {
   depends_on = [aws_internet_gateway.igw]
 
   tags = {
-    "Name" = "NAT Gateway EIP"
+    "Name" = "eip-${var.app_env}"
   }
 }
 
@@ -80,7 +80,7 @@ resource "aws_nat_gateway" "nat" {
   allocation_id = aws_eip.nat-eip.id
   subnet_id     = aws_subnet.public-sub-1.id
   tags = {
-    Name = "gw NAT"
+    Name = "nat-${var.app_env}"
   }
 
   # To ensure proper ordering, it is recommended to add an explicit dependency
@@ -95,7 +95,7 @@ resource "aws_subnet" "private-sub" {
   availability_zone = "us-east-1a"
 
   tags = {
-    "Name" = "private subnet"
+    "Name" = "private-subnet-${var.app_env}"
   }
 }
 
@@ -109,7 +109,7 @@ resource "aws_route_table" "private" {
   }
 
   tags = {
-    "Name" = "Public Route Table"
+    "Name" = "pub-route-table-${var.app_env}"
   }
 }
 
