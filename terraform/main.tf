@@ -1,3 +1,10 @@
+terraform {
+  backend "s3" {
+    bucket = "terraform-app-depl"
+    region = "us-east-1"
+    key    = "deployment/terraform.tfstate"
+  }
+}
 provider "aws" {
   region = "us-east-1"
 }
@@ -25,5 +32,15 @@ module "ec2_app" {
   app_security_group_id = module.security_groups.web_access.id
   vpc_id                = module.infra_vpc.vpc_id
   app_env               = local.environment
+}
+
+output "server-1-id" {
+  value = module.ec2_app.server-1-id
+}
+output "server-2-id" {
+  value = module.ec2_app.server-2-id
+}
+output "load-balancer-dns" {
+  value = module.ec2_app.load-balancer-dns
 }
 
