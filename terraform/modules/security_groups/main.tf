@@ -3,7 +3,7 @@
 resource "aws_security_group" "dev_access" {
   name        = "dev_access"
   description = "Access control for developers"
-  vpc_id      = var.vpc
+  vpc_id      = var.vpc_id
 
   # HTTPS
   ingress {
@@ -44,7 +44,7 @@ resource "aws_security_group" "dev_access" {
   }
 
   tags = {
-    Name = "LB Security Group"
+    Name = "Dev Security Group"
   }
 }
 
@@ -52,7 +52,7 @@ resource "aws_security_group" "dev_access" {
 resource "aws_security_group" "web_access" {
   name        = "web_access"
   description = "Access control for general traffic"
-  vpc_id      = var.vpc
+  vpc_id      = var.vpc_id
 
   # HTTPS
   ingress {
@@ -83,6 +83,6 @@ resource "aws_security_group" "web_access" {
   }
 
   tags = {
-    Name = "LB Security Group"
+    Name = "App Security Group"
   }
 }

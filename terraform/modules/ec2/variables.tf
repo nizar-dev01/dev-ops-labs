@@ -20,3 +20,20 @@ variable "key_name" {
   default = "ec2_keys"
 }
 
+variable "private_subnet" {
+  type = string
+}
+variable "public_subnet_one" {
+  type = string
+}
+variable "public_subnet_two" {
+  type = string
+}
+
+variable "app_security_group_id" {
+  type = string
+}
+
+variable "vpc_id" {
+  type = string
+}
