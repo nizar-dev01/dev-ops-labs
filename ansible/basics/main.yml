@@ -1,0 +1,17 @@
+- name: Installing Nginx
+  hosts: WebServers
+  roles:
+    - users
+    - nginx
+  tasks:
+
+    - name: Installing the package
+      package:
+        name: nginx
+        state: present
+
+    - name: Making sure nginx is running
+      systemd:
+        name: nginx
+        state: started
+ 
